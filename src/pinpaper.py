@@ -2,14 +2,25 @@ import feedparser
 import requests
 import os
 import ctypes
+import json
 from datetime import datetime
 
-# === CONFIG ===
-RSS_FEED = "https://www.pinterest.com/seanhanlon126/u-kno-the-vibes/"
-DOWNLOAD_DIR = os.path.join(os.path.expanduser("~"), "Pictures", "PinPaper")
-WALLPAPER_PATH = os.path.join(DOWNLOAD_DIR, "pin_today.jpg")
+# === LOAD CONFIG ===
+DEFAULT_FEED = "https://www.pinterest.com/seanhanlon126/u-kno-the-vibes.rss"
+DEFAULT_DIR = os.path.join(os.path.expanduser("~"), "Pictures", "PinPaper")
 
-# === CREATE FOLDER IF NEEDED ===
+config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+try:
+    with open(config_path, 'r') as f:
+        config = json.load(f)
+    RSS_FEED = config.get("rss_feed", DEFAULT_FEED)
+    DOWNLOAD_DIR = config.get("download_dir", DEFAULT_DIR)
+except (FileNotFoundError, json.JSONDecodeError):
+    print("⚠️ Could not load config.json — using default settings.")
+    RSS_FEED = DEFAULT_FEED
+    DOWNLOAD_DIR = DEFAULT_DIR
+
+WALLPAPER_PATH = os.path.join(DOWNLOAD_DIR, "pin_today.jpg")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 # === PARSE RSS ===
