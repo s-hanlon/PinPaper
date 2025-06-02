@@ -38,7 +38,7 @@ print("===============================")
 # Get latest image URL
 import re
 
-entry = random.choice(feed.entries[:10])  # pick from the 10 most recent pins
+entry = random.choice(feed.entries[:100])  # pick from the 100 most recent pins
 summary_html = entry.get("summary", "")
 
 match = re.search(r'<img src="([^"]+)"', summary_html)
