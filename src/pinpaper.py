@@ -1,10 +1,16 @@
-import requests
-from bs4 import BeautifulSoup
 import os
-import ctypes
 import json
+import ctypes
 import random
 from datetime import datetime
+import requests
+
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from webdriver_manager.chrome import ChromeDriverManager
+from bs4 import BeautifulSoup
+import time
 
 # === LOAD CONFIG ===
 DEFAULT_BOARD_URL = "https://www.pinterest.com/seanhanlon126/u-kno-the-vibes/"
@@ -17,37 +23,51 @@ try:
     BOARD_URL = config.get("board_url", DEFAULT_BOARD_URL)
     DOWNLOAD_DIR = config.get("download_dir", DEFAULT_DIR)
 except (FileNotFoundError, json.JSONDecodeError):
-    print("Could not load config.json — using default settings.")
+    print("⚠️ Could not load config.json — using default settings.")
     BOARD_URL = DEFAULT_BOARD_URL
     DOWNLOAD_DIR = DEFAULT_DIR
 
 WALLPAPER_PATH = os.path.join(DOWNLOAD_DIR, "pin_today.jpg")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-# === SCRAPE BOARD HTML ===
-headers = {
-    "User-Agent": "Mozilla/5.0"
-}
-response = requests.get(BOARD_URL, headers=headers)
-soup = BeautifulSoup(response.text, "html.parser")
+# === SETUP SELENIUM (HEADLESS BROWSER) ===
+chrome_options = Options()
+chrome_options.add_argument("--headless=new")  # use headless mode
+chrome_options.add_argument("--disable-gpu")
+chrome_options.add_argument("--log-level=3")
+chrome_options.add_argument("--window-size=1920x3000")  # taller to capture more pins
 
-# Extract all <img> tags pointing to pinimg.com
+driver = webdriver.Chrome(ChromeDriverManager().install(), options=chrome_options)
+driver.get(BOARD_URL)
+
+# === SCROLL TO LOAD MORE PINS ===
+scroll_pause = 2
+last_height = driver.execute_script("return document.body.scrollHeight")
+
+for _ in range(5):  # scroll down 5 times
+    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+    time.sleep(scroll_pause)
+    new_height = driver.execute_script("return document.body.scrollHeight")
+    if new_height == last_height:
+        break
+    last_height = new_height
+
+# === PARSE IMAGE TAGS ===
+soup = BeautifulSoup(driver.page_source, "html.parser")
+driver.quit()
+
 img_tags = soup.find_all("img")
 img_urls = [
     img["src"] for img in img_tags
     if "pinimg.com" in img.get("src", "") and "/236x/" in img.get("src", "")
 ]
-
-# Deduplicate
-img_urls = list(set(img_urls))
+img_urls = list(set(img_urls))  # Deduplicate
 
 if not img_urls:
-    raise Exception("No usable Pinterest images found.")
+    raise Exception("No Pinterest images found.")
 
-# Choose one at random
+# === SELECT + UPGRADE QUALITY ===
 base_url = random.choice(img_urls)
-
-# Try higher quality versions
 quality_paths = ["/originals/", "/736x/", "/564x/", "/236x/"]
 img_url = None
 
@@ -58,8 +78,8 @@ for quality in quality_paths:
         if img_resp.status_code == 200:
             img_url = test_url
             break
-    except Exception as e:
-        print(f"Error checking {test_url}: {e}")
+    except:
+        continue
 
 if not img_url:
     raise Exception("Could not retrieve a valid image from any quality level.")
@@ -70,5 +90,4 @@ with open(WALLPAPER_PATH, 'wb') as f:
 
 # === SET AS WALLPAPER (Windows only) ===
 ctypes.windll.user32.SystemParametersInfoW(20, 0, WALLPAPER_PATH, 3)
-
 print(f"[{datetime.now()}] Wallpaper updated from: {img_url}")
