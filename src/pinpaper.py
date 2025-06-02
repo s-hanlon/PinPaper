@@ -35,9 +35,15 @@ print(feed.entries[0])
 print("===============================")
 
 # Get latest image URL
-img_url = feed.entries[0].get("media_content", [{}])[0].get("url", None)
-if not img_url:
-    raise Exception("No image found in feed entry.")
+import re
+
+summary_html = feed.entries[0].get("summary", "")
+match = re.search(r'<img src="([^"]+)"', summary_html)
+
+if not match:
+    raise Exception("No image URL found in summary HTML.")
+
+img_url = match.group(1)
 
 # === DOWNLOAD IMAGE ===
 response = requests.get(img_url)
