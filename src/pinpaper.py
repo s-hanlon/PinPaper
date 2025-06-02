@@ -46,7 +46,7 @@ match = re.search(r'<img src="([^"]+)"', summary_html)
 if not match:
     raise Exception("No image URL found in summary HTML.")
 
-img_url = match.group(1).replace("/236x/", "/originals/")
+img_url = match.group(1).replace("/236x/", "/736x/")
 
 # === DOWNLOAD IMAGE ===
 response = requests.get(img_url)
