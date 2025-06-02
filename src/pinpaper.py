@@ -3,6 +3,7 @@ import requests
 import os
 import ctypes
 import json
+import random
 from datetime import datetime
 
 # === LOAD CONFIG ===
@@ -37,13 +38,15 @@ print("===============================")
 # Get latest image URL
 import re
 
-summary_html = feed.entries[0].get("summary", "")
+entry = random.choice(feed.entries[:10])  # pick from the 10 most recent pins
+summary_html = entry.get("summary", "")
+
 match = re.search(r'<img src="([^"]+)"', summary_html)
 
 if not match:
     raise Exception("No image URL found in summary HTML.")
 
-img_url = match.group(1)
+img_url = match.group(1).replace("/236x/", "/originals/")
 
 # === DOWNLOAD IMAGE ===
 response = requests.get(img_url)
