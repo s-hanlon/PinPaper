@@ -4,11 +4,11 @@ import json
 import os
 import threading
 import time
-
+import schedule
 from PIL import Image
 import pystray
+from pinpaper import run_pinpaper
 
-# === CONFIG SETUP ===
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config.json')
 ICON_PATH = os.path.join(os.path.dirname(__file__), 'icon.png')
 
@@ -31,12 +31,26 @@ def save_config(data):
     with open(CONFIG_PATH, 'w') as f:
         json.dump(data, f, indent=4)
 
-# === GUI SETUP ===
+def start_scheduled_updates():
+    config = load_config()
+    interval = config.get("update_frequency_minutes", 1440)
+
+    schedule.clear("pinpaper")
+    schedule.every(interval).minutes.do(run_pinpaper).tag("pinpaper")
+
+    def loop():
+        while True:
+            schedule.run_pending()
+            time.sleep(30)
+
+    threading.Thread(target=loop, daemon=True).start()
+    print(f"[Scheduler] Updates scheduled every {interval} minutes.")
+
 def launch_gui():
     config = load_config()
     root = tk.Tk()
     root.title("PinPaper Settings")
-    root.geometry("400x220")
+    root.geometry("400x270")
 
     tk.Label(root, text="Pinterest Board URL:").pack(anchor="w", padx=10, pady=(10, 0))
     url_entry = tk.Entry(root, width=50)
@@ -72,30 +86,46 @@ def launch_gui():
         save_config(new_config)
         messagebox.showinfo("Success", "Settings saved successfully!")
 
-    tk.Button(root, text="Save Settings", command=save_settings).pack(pady=15)
-    root.protocol("WM_DELETE_WINDOW", lambda: minimize_to_tray(root))
+    def start_updates():
+        try:
+            run_pinpaper()
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to set wallpaper: {e}")
+            return
+        start_scheduled_updates()
+        messagebox.showinfo("Running", "Wallpaper will now update in the background.")
+
+    tk.Button(root, text="Save Settings", command=save_settings).pack(pady=(5, 5))
+    tk.Button(root, text="Start Updating", command=start_updates).pack(pady=(0, 10))
+
+    def minimize_to_tray():
+        root.withdraw()
+        icon_image = Image.open(ICON_PATH)
+
+        def show_window():
+            root.deiconify()
+
+        def quit_app():
+            tray_icon.stop()
+            root.destroy()
+
+        def force_update():
+            try:
+                run_pinpaper()
+            except Exception as e:
+                print(f"[Tray] Update failed: {e}")
+
+        tray_menu = pystray.Menu(
+            pystray.MenuItem("Force Update", lambda: force_update()),
+            pystray.MenuItem("Open Settings", lambda: show_window()),
+            pystray.MenuItem("Exit", lambda: quit_app())
+        )
+
+        tray_icon = pystray.Icon("PinPaper", icon_image, "PinPaper", tray_menu)
+        threading.Thread(target=tray_icon.run, daemon=True).start()
+
+    root.protocol("WM_DELETE_WINDOW", minimize_to_tray)
     root.mainloop()
 
-# === SYSTEM TRAY ===
-def minimize_to_tray(window):
-    window.withdraw()
-    image = Image.open(ICON_PATH)
-
-    def on_show():
-        window.deiconify()
-
-    def on_quit():
-        tray_icon.stop()
-        window.destroy()
-
-    menu = pystray.Menu(
-        pystray.MenuItem("Open Settings", lambda: on_show()),
-        pystray.MenuItem("Exit", lambda: on_quit())
-    )
-
-    tray_icon = pystray.Icon("PinPaper", image, "PinPaper", menu)
-    threading.Thread(target=tray_icon.run, daemon=True).start()
-
-# === MAIN ===
 if __name__ == "__main__":
     launch_gui()
