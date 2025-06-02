@@ -26,6 +26,9 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 # === PARSE RSS ===
 feed = feedparser.parse(RSS_FEED)
 if not feed.entries:
+    print("=== DEBUG: First Feed Entry ===")
+    print(feed.entries[0])
+    print("===============================")
     raise Exception("No entries found in feed.")
 
 # Get latest image URL
