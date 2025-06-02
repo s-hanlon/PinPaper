@@ -8,6 +8,7 @@ import requests
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 import time
@@ -32,27 +33,13 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 # === SETUP SELENIUM (HEADLESS BROWSER) ===
 chrome_options = Options()
-chrome_options.add_argument("--headless=new")  # use headless mode
+chrome_options.add_argument("--headless=new")
 chrome_options.add_argument("--disable-gpu")
 chrome_options.add_argument("--log-level=3")
-chrome_options.add_argument("--window-size=1920x3000")  # taller to capture more pins
+chrome_options.add_argument("--window-size=1920x3000")
 
-from selenium.webdriver.chrome.service import Service
 driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
-
 driver.get(BOARD_URL)
-
-# === SCROLL TO LOAD MORE PINS ===
-scroll_pause = 2
-last_height = driver.execute_script("return document.body.scrollHeight")
-
-for _ in range(5):  # scroll down 5 times
-    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-    time.sleep(scroll_pause)
-    new_height = driver.execute_script("return document.body.scrollHeight")
-    if new_height == last_height:
-        break
-    last_height = new_height
 
 # === SCROLL TO LOAD MORE PINS ===
 scroll_pause = 3
@@ -68,7 +55,7 @@ for _ in range(scroll_attempts):
     last_height = new_height
 
 # === PARSE IMAGE TAGS ===
-time.sleep(2)  # let things finish loading
+time.sleep(2)
 soup = BeautifulSoup(driver.page_source, "html.parser")
 driver.quit()
 
@@ -81,7 +68,7 @@ def extract_img_urls(soup):
 
 img_urls = list(set(extract_img_urls(soup)))
 
-# === If nothing was found, wait & try parsing again ===
+# Try parsing again if nothing found
 if not img_urls:
     time.sleep(2)
     soup = BeautifulSoup(driver.page_source, "html.parser")
@@ -89,6 +76,26 @@ if not img_urls:
 
 if not img_urls:
     raise Exception("No Pinterest images found.")
+
+# === SELECT + UPGRADE IMAGE QUALITY ===
+base_url = random.choice(img_urls)
+quality_paths = ["/originals/", "/736x/", "/564x/", "/236x/"]
+img_url = None
+img_resp = None
+
+for quality in quality_paths:
+    test_url = base_url.replace("/236x/", quality)
+    try:
+        resp = requests.get(test_url, timeout=5)
+        if resp.status_code == 200:
+            img_url = test_url
+            img_resp = resp
+            break
+    except:
+        continue
+
+if not img_resp or not img_url:
+    raise Exception("Could not retrieve a valid image from any quality level.")
 
 # === DOWNLOAD IMAGE ===
 with open(WALLPAPER_PATH, 'wb') as f:
