@@ -4,12 +4,14 @@ import json
 import os
 import threading
 import time
-import schedule
 
-from pinpaper import run_pinpaper  # assumes pinpaper.py is in the same folder
+from PIL import Image
+import pystray
 
-# === CONFIG ===
+# === CONFIG SETUP ===
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config.json')
+ICON_PATH = os.path.join(os.path.dirname(__file__), 'icon.png')
+
 DEFAULTS = {
     "board_url": "https://www.pinterest.com/seanhanlon126/u-kno-the-vibes/",
     "download_dir": os.path.join(os.path.expanduser("~"), "Pictures", "PinPaper"),
@@ -30,77 +32,70 @@ def save_config(data):
         json.dump(data, f, indent=4)
 
 # === GUI SETUP ===
-config = load_config()
-root = tk.Tk()
-root.title("PinPaper Settings")
-root.geometry("400x260")
-
-# URL Entry
-tk.Label(root, text="Pinterest Board URL:").pack(anchor="w", padx=10, pady=(10, 0))
-url_entry = tk.Entry(root, width=50)
-url_entry.insert(0, config.get("board_url", ""))
-url_entry.pack(padx=10, pady=5)
-
-# Frequency Dropdown
-tk.Label(root, text="Update Frequency:").pack(anchor="w", padx=10, pady=(10, 0))
-frequency_options = {
-    "Every 10 minutes": 10,
-    "Every 1 hour": 60,
-    "Every 12 hours": 720,
-    "Every 24 hours": 1440
-}
-dropdown = ttk.Combobox(root, values=list(frequency_options.keys()), state="readonly", width=47)
-current_freq = config.get("update_frequency_minutes", 1440)
-for label, minutes in frequency_options.items():
-    if minutes == current_freq:
-        dropdown.set(label)
-        break
-dropdown.pack(padx=10, pady=5)
-
-# Save Settings
-def save_settings():
-    new_url = url_entry.get().strip()
-    new_freq_label = dropdown.get()
-    if not new_url.startswith("https://www.pinterest.com/"):
-        messagebox.showerror("Invalid URL", "Please enter a valid Pinterest board URL.")
-        return
-    new_config = {
-        "board_url": new_url,
-        "download_dir": config.get("download_dir"),
-        "update_frequency_minutes": frequency_options[new_freq_label]
-    }
-    save_config(new_config)
-    messagebox.showinfo("Success", "Settings saved successfully!")
-
-tk.Button(root, text="Save Settings", command=save_settings).pack(pady=(5, 10))
-
-# Start Updating Button
-def start_wallpaper_loop():
+def launch_gui():
     config = load_config()
-    minutes = config.get("update_frequency_minutes", 1440)
+    root = tk.Tk()
+    root.title("PinPaper Settings")
+    root.geometry("400x220")
 
-    # Cancel previous jobs if any
-    schedule.clear("wallpaper")
+    tk.Label(root, text="Pinterest Board URL:").pack(anchor="w", padx=10, pady=(10, 0))
+    url_entry = tk.Entry(root, width=50)
+    url_entry.insert(0, config.get("board_url", ""))
+    url_entry.pack(padx=10, pady=5)
 
-    # Schedule the update job
-    schedule.every(minutes).minutes.do(run_pinpaper).tag("wallpaper")
+    tk.Label(root, text="Update Frequency:").pack(anchor="w", padx=10, pady=(10, 0))
+    frequency_options = {
+        "Every 10 minutes": 10,
+        "Every 1 hour": 60,
+        "Every 12 hours": 720,
+        "Every 24 hours": 1440
+    }
+    dropdown = ttk.Combobox(root, values=list(frequency_options.keys()), state="readonly", width=47)
+    current_freq = config.get("update_frequency_minutes", 1440)
+    for label, minutes in frequency_options.items():
+        if minutes == current_freq:
+            dropdown.set(label)
+            break
+    dropdown.pack(padx=10, pady=5)
 
-    # Run immediately once
-    try:
-        run_pinpaper()
-    except Exception as e:
-        messagebox.showerror("Error", f"Failed to set wallpaper: {e}")
-        return
+    def save_settings():
+        new_url = url_entry.get().strip()
+        new_freq_label = dropdown.get()
+        if not new_url.startswith("https://www.pinterest.com/"):
+            messagebox.showerror("Invalid URL", "Please enter a valid Pinterest board URL.")
+            return
+        new_config = {
+            "board_url": new_url,
+            "download_dir": config.get("download_dir"),
+            "update_frequency_minutes": frequency_options[new_freq_label]
+        }
+        save_config(new_config)
+        messagebox.showinfo("Success", "Settings saved successfully!")
 
-    def scheduler_loop():
-        while True:
-            schedule.run_pending()
-            time.sleep(30)
+    tk.Button(root, text="Save Settings", command=save_settings).pack(pady=15)
+    root.protocol("WM_DELETE_WINDOW", lambda: minimize_to_tray(root))
+    root.mainloop()
 
-    thread = threading.Thread(target=scheduler_loop, daemon=True)
-    thread.start()
-    messagebox.showinfo("Running", f"Wallpaper will update every {minutes} minutes.")
+# === SYSTEM TRAY ===
+def minimize_to_tray(window):
+    window.withdraw()
+    image = Image.open(ICON_PATH)
 
-tk.Button(root, text="Start Updating", command=start_wallpaper_loop).pack(pady=10)
+    def on_show():
+        window.deiconify()
 
-root.mainloop()
+    def on_quit():
+        tray_icon.stop()
+        window.destroy()
+
+    menu = pystray.Menu(
+        pystray.MenuItem("Open Settings", lambda: on_show()),
+        pystray.MenuItem("Exit", lambda: on_quit())
+    )
+
+    tray_icon = pystray.Icon("PinPaper", image, "PinPaper", menu)
+    threading.Thread(target=tray_icon.run, daemon=True).start()
+
+# === MAIN ===
+if __name__ == "__main__":
+    launch_gui()
