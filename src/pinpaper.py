@@ -54,37 +54,41 @@ for _ in range(5):  # scroll down 5 times
         break
     last_height = new_height
 
+# === SCROLL TO LOAD MORE PINS ===
+scroll_pause = 3
+scroll_attempts = 8
+last_height = driver.execute_script("return document.body.scrollHeight")
+
+for _ in range(scroll_attempts):
+    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+    time.sleep(scroll_pause)
+    new_height = driver.execute_script("return document.body.scrollHeight")
+    if new_height == last_height:
+        break
+    last_height = new_height
+
 # === PARSE IMAGE TAGS ===
+time.sleep(2)  # let things finish loading
 soup = BeautifulSoup(driver.page_source, "html.parser")
 driver.quit()
 
-img_tags = soup.find_all("img")
-img_urls = [
-    img["src"] for img in img_tags
-    if "pinimg.com" in img.get("src", "") and "/236x/" in img.get("src", "")
-]
-img_urls = list(set(img_urls))  # Deduplicate
+def extract_img_urls(soup):
+    img_tags = soup.find_all("img")
+    return [
+        img["src"] for img in img_tags
+        if "pinimg.com" in img.get("src", "") and "/236x/" in img.get("src", "")
+    ]
+
+img_urls = list(set(extract_img_urls(soup)))
+
+# === If nothing was found, wait & try parsing again ===
+if not img_urls:
+    time.sleep(2)
+    soup = BeautifulSoup(driver.page_source, "html.parser")
+    img_urls = list(set(extract_img_urls(soup)))
 
 if not img_urls:
     raise Exception("No Pinterest images found.")
-
-# === SELECT + UPGRADE QUALITY ===
-base_url = random.choice(img_urls)
-quality_paths = ["/originals/", "/736x/", "/564x/", "/236x/"]
-img_url = None
-
-for quality in quality_paths:
-    test_url = base_url.replace("/236x/", quality)
-    try:
-        img_resp = requests.get(test_url, timeout=5)
-        if img_resp.status_code == 200:
-            img_url = test_url
-            break
-    except:
-        continue
-
-if not img_url:
-    raise Exception("Could not retrieve a valid image from any quality level.")
 
 # === DOWNLOAD IMAGE ===
 with open(WALLPAPER_PATH, 'wb') as f:
