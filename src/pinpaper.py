@@ -37,7 +37,9 @@ chrome_options.add_argument("--disable-gpu")
 chrome_options.add_argument("--log-level=3")
 chrome_options.add_argument("--window-size=1920x3000")  # taller to capture more pins
 
-driver = webdriver.Chrome(ChromeDriverManager().install(), options=chrome_options)
+from selenium.webdriver.chrome.service import Service
+driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+
 driver.get(BOARD_URL)
 
 # === SCROLL TO LOAD MORE PINS ===
