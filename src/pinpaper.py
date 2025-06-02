@@ -1,5 +1,5 @@
-import feedparser
 import requests
+from bs4 import BeautifulSoup
 import os
 import ctypes
 import json
@@ -7,56 +7,55 @@ import random
 from datetime import datetime
 
 # === LOAD CONFIG ===
-DEFAULT_FEED = "https://www.pinterest.com/seanhanlon126/u-kno-the-vibes.rss"
+DEFAULT_BOARD_URL = "https://www.pinterest.com/seanhanlon126/u-kno-the-vibes/"
 DEFAULT_DIR = os.path.join(os.path.expanduser("~"), "Pictures", "PinPaper")
 
 config_path = os.path.join(os.path.dirname(__file__), 'config.json')
 try:
     with open(config_path, 'r') as f:
         config = json.load(f)
-    RSS_FEED = config.get("rss_feed", DEFAULT_FEED)
+    BOARD_URL = config.get("board_url", DEFAULT_BOARD_URL)
     DOWNLOAD_DIR = config.get("download_dir", DEFAULT_DIR)
 except (FileNotFoundError, json.JSONDecodeError):
-    print("⚠️ Could not load config.json — using default settings.")
-    RSS_FEED = DEFAULT_FEED
+    print("Could not load config.json — using default settings.")
+    BOARD_URL = DEFAULT_BOARD_URL
     DOWNLOAD_DIR = DEFAULT_DIR
 
 WALLPAPER_PATH = os.path.join(DOWNLOAD_DIR, "pin_today.jpg")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-# === PARSE RSS ===
-feed = feedparser.parse(RSS_FEED)
+# === SCRAPE BOARD HTML ===
+headers = {
+    "User-Agent": "Mozilla/5.0"
+}
+response = requests.get(BOARD_URL, headers=headers)
+soup = BeautifulSoup(response.text, "html.parser")
 
-if not feed.entries:
-    raise Exception("No entries found in feed.")
+# Extract all <img> tags pointing to pinimg.com
+img_tags = soup.find_all("img")
+img_urls = [
+    img["src"] for img in img_tags
+    if "pinimg.com" in img.get("src", "") and "/236x/" in img.get("src", "")
+]
 
-# Debug: print out the first entry structure
-print("=== DEBUG: First Feed Entry ===")
-print(feed.entries[0])
-print("===============================")
+# Deduplicate
+img_urls = list(set(img_urls))
 
-# Get latest image URL
-import re
+if not img_urls:
+    raise Exception("No usable Pinterest images found.")
 
-# Get a random pin from the latest 100 entries
-entry = random.choice(feed.entries[:100])
-summary_html = entry.get("summary", "")
-match = re.search(r'<img src="([^"]+)"', summary_html)
+# Choose one at random
+base_url = random.choice(img_urls)
 
-if not match:
-    raise Exception("No image URL found in summary HTML.")
-
-base_url = match.group(1)
-
-# Attempt higher-quality versions
+# Try higher quality versions
 quality_paths = ["/originals/", "/736x/", "/564x/", "/236x/"]
 img_url = None
 
 for quality in quality_paths:
     test_url = base_url.replace("/236x/", quality)
     try:
-        response = requests.get(test_url, timeout=5)
-        if response.status_code == 200:
+        img_resp = requests.get(test_url, timeout=5)
+        if img_resp.status_code == 200:
             img_url = test_url
             break
     except Exception as e:
@@ -65,9 +64,9 @@ for quality in quality_paths:
 if not img_url:
     raise Exception("Could not retrieve a valid image from any quality level.")
 
-# Save the best version found
+# === DOWNLOAD IMAGE ===
 with open(WALLPAPER_PATH, 'wb') as f:
-    f.write(response.content)
+    f.write(img_resp.content)
 
 # === SET AS WALLPAPER (Windows only) ===
 ctypes.windll.user32.SystemParametersInfoW(20, 0, WALLPAPER_PATH, 3)
