@@ -38,18 +38,34 @@ print("===============================")
 # Get latest image URL
 import re
 
-entry = random.choice(feed.entries[:100])  # pick from the 100 most recent pins
+# Get a random pin from the latest 100 entries
+entry = random.choice(feed.entries[:100])
 summary_html = entry.get("summary", "")
-
 match = re.search(r'<img src="([^"]+)"', summary_html)
 
 if not match:
     raise Exception("No image URL found in summary HTML.")
 
-img_url = match.group(1).replace("/236x/", "/736x/")
+base_url = match.group(1)
 
-# === DOWNLOAD IMAGE ===
-response = requests.get(img_url)
+# Attempt higher-quality versions
+quality_paths = ["/originals/", "/736x/", "/564x/", "/236x/"]
+img_url = None
+
+for quality in quality_paths:
+    test_url = base_url.replace("/236x/", quality)
+    try:
+        response = requests.get(test_url, timeout=5)
+        if response.status_code == 200:
+            img_url = test_url
+            break
+    except Exception as e:
+        print(f"Error checking {test_url}: {e}")
+
+if not img_url:
+    raise Exception("Could not retrieve a valid image from any quality level.")
+
+# Save the best version found
 with open(WALLPAPER_PATH, 'wb') as f:
     f.write(response.content)
 
