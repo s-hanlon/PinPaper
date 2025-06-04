@@ -16,7 +16,7 @@ CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config.json')
 ICON_PATH = os.path.join(os.path.dirname(__file__), 'icon.png')
 
 DEFAULTS = {
-    "board_url": "https://www.pinterest.com/seanhanlon126/u-kno-the-vibes/",
+    "board_url": "https://www.pinterest.com/seanhanlon126/pinpaper/",
     "download_dir": os.path.join(os.path.expanduser("~"), "Pictures", "PinPaper"),
     "update_frequency_minutes": 1440
 }
@@ -102,7 +102,7 @@ def launch_gui():
         start_scheduled_updates()
         messagebox.showinfo("Running", "Wallpaper will now update in the background.")
 
-    ttk.Button(frm, text="💾 Save Settings", command=save_settings, bootstyle="success").pack(pady=(0, 6), fill=X)
+    ttk.Button(frm, text="💾 Save Settings", command=save_settings, bootstyle="primary").pack(pady=(0, 6), fill=X)
     ttk.Button(frm, text="▶ Start Updating", command=start_updates, bootstyle="info").pack(pady=(0, 6), fill=X)
 
     def minimize_to_tray():

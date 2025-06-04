@@ -15,7 +15,7 @@ import time
 
 def run_pinpaper():
     # === LOAD CONFIG ===
-    DEFAULT_BOARD_URL = "https://www.pinterest.com/seanhanlon126/u-kno-the-vibes/"
+    DEFAULT_BOARD_URL = "https://www.pinterest.com/seanhanlon126/pinpaper/"
     DEFAULT_DIR = os.path.join(os.path.expanduser("~"), "Pictures", "PinPaper")
     config_path = os.path.join(os.path.dirname(__file__), 'config.json')
     try:
