@@ -84,7 +84,14 @@ def on_exit(icon=None, item=None):
     return True
 
 def show_tray_icon():
-    icon_path = os.path.join(os.path.dirname(__file__), "icon.png")
+    def resource_path(relative_path):
+        """ Get absolute path to resource, works for PyInstaller and normal run """
+        if hasattr(sys, '_MEIPASS'):
+            return os.path.join(sys._MEIPASS, relative_path)
+        return os.path.join(os.path.dirname(__file__), relative_path)
+
+    icon_path = resource_path("icon.png")
+
     if not os.path.exists(icon_path):
         print("Missing icon.png for tray icon")
         return
