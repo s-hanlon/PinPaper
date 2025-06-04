@@ -48,8 +48,11 @@ def browse_directory():
         download_dir_var.set(path)
 
 def run_wallpaper_update():
-    script_path = os.path.join(os.path.dirname(__file__), 'pinpaper.py')
-    subprocess.call([sys.executable, script_path])
+    try:
+        import pinpaper
+        pinpaper.run_pinpaper()
+    except Exception as e:
+        print(f"[Error] Wallpaper update failed: {e}")
 
 def schedule_wallpaper_updates():
     interval_text = interval_var.get()
