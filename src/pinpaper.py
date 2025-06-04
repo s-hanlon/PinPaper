@@ -43,7 +43,7 @@ def run_pinpaper():
 
     # === SCROLL TO LOAD MORE PINS ===
     scroll_pause = 3
-    scroll_attempts = 3
+    scroll_attempts = 2
     last_height = driver.execute_script("return document.body.scrollHeight")
 
     for _ in range(scroll_attempts):
