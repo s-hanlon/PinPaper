@@ -14,6 +14,9 @@ from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 import feedparser
+from win10toast import ToastNotifier
+notifier = ToastNotifier()
+
 
 def scale_scrolls(pin_hint):
     if pin_hint == "<40":
@@ -125,6 +128,7 @@ def run_pinpaper():
 
     ctypes.windll.user32.SystemParametersInfoW(20, 0, WALLPAPER_PATH, 3)
     print(f"[{datetime.now()}] Wallpaper updated from: {img_url}")
+    notifier.show_toast("PinPaper", "Wallpaper updated successfully!", duration=5, threaded=True)
 
 if __name__ == "__main__":
     run_pinpaper()
