@@ -32,12 +32,18 @@ def fetch_from_rss(board_url):
     if not entries:
         raise Exception("RSS feed is empty.")
 
+    image_urls = []
     for entry in entries:
         if 'summary' in entry and 'img src="' in entry.summary:
             match = re.search(r'img src="([^"]+)"', entry.summary)
             if match:
-                return match.group(1)
-    raise Exception("No image found in RSS entries.")
+                image_urls.append(match.group(1))
+
+    if not image_urls:
+        raise Exception("No images found in RSS entries.")
+
+    return random.choice(image_urls)
+
 
 def run_pinpaper():
     DEFAULT_BOARD_URL = "https://www.pinterest.com/seanhanlon126/pinpaper/"
