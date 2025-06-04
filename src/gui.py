@@ -88,10 +88,11 @@ def show_tray_icon():
 
     image = Image.open(icon_path)
     menu = pystray.Menu(
-        pystray.MenuItem("Update Now", lambda icon, item: run_wallpaper_update() or True),
-        pystray.MenuItem("Settings", lambda icon, item: root.deiconify() or True),
+        pystray.MenuItem("Update Now", on_update_now),
+        pystray.MenuItem("Settings", on_open_settings),
         pystray.MenuItem("Exit", on_exit)
     )
+
 
 
     icon = pystray.Icon("PinPaper", image, "PinPaper", menu)
@@ -99,6 +100,15 @@ def show_tray_icon():
 
 def on_close():
     root.withdraw()
+
+def on_update_now(icon, item):
+    run_wallpaper_update()
+    return True
+
+def on_open_settings(icon, item):
+    root.deiconify()
+    return True
+
 
 root = tb.Window(themename="darkly")
 root.title("PinPaper Setup")
