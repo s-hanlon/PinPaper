@@ -78,6 +78,7 @@ def on_exit(icon=None, item=None):
     if icon:
         icon.stop()
     os._exit(0)
+    return True
 
 def show_tray_icon():
     icon_path = os.path.join(os.path.dirname(__file__), "icon.png")
@@ -87,10 +88,11 @@ def show_tray_icon():
 
     image = Image.open(icon_path)
     menu = pystray.Menu(
-        pystray.MenuItem("Update Now", lambda: run_wallpaper_update()),
-        pystray.MenuItem("Settings", lambda: root.deiconify()),
+        pystray.MenuItem("Update Now", lambda icon, item: run_wallpaper_update() or True),
+        pystray.MenuItem("Settings", lambda icon, item: root.deiconify() or True),
         pystray.MenuItem("Exit", on_exit)
     )
+
 
     icon = pystray.Icon("PinPaper", image, "PinPaper", menu)
     threading.Thread(target=icon.run, daemon=True).start()
