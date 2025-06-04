@@ -1,10 +1,13 @@
-import tkinter as tk
-from tkinter import ttk, messagebox
-import json
 import os
+import json
 import threading
 import time
 import schedule
+
+from ttkbootstrap import Style
+from ttkbootstrap.constants import *
+import ttkbootstrap as ttk
+from tkinter import messagebox
 from PIL import Image
 import pystray
 from pinpaper import run_pinpaper
@@ -48,29 +51,33 @@ def start_scheduled_updates():
 
 def launch_gui():
     config = load_config()
-    root = tk.Tk()
+    style = Style("darkly")  # try "cosmo", "superhero", "flatly", etc.
+    root = style.master
     root.title("PinPaper Settings")
-    root.geometry("400x270")
+    root.geometry("420x280")
 
-    tk.Label(root, text="Pinterest Board URL:").pack(anchor="w", padx=10, pady=(10, 0))
-    url_entry = tk.Entry(root, width=50)
+    frm = ttk.Frame(root, padding=15)
+    frm.pack(fill=BOTH, expand=YES)
+
+    ttk.Label(frm, text="Pinterest Board URL:").pack(anchor=W, pady=(0, 4))
+    url_entry = ttk.Entry(frm, width=50)
     url_entry.insert(0, config.get("board_url", ""))
-    url_entry.pack(padx=10, pady=5)
+    url_entry.pack(fill=X, pady=(0, 10))
 
-    tk.Label(root, text="Update Frequency:").pack(anchor="w", padx=10, pady=(10, 0))
+    ttk.Label(frm, text="Update Frequency:").pack(anchor=W, pady=(0, 4))
     frequency_options = {
         "Every 10 minutes": 10,
         "Every 1 hour": 60,
         "Every 12 hours": 720,
         "Every 24 hours": 1440
     }
-    dropdown = ttk.Combobox(root, values=list(frequency_options.keys()), state="readonly", width=47)
+    dropdown = ttk.Combobox(frm, values=list(frequency_options.keys()), state="readonly", width=47, bootstyle="primary")
     current_freq = config.get("update_frequency_minutes", 1440)
     for label, minutes in frequency_options.items():
         if minutes == current_freq:
             dropdown.set(label)
             break
-    dropdown.pack(padx=10, pady=5)
+    dropdown.pack(fill=X, pady=(0, 12))
 
     def save_settings():
         new_url = url_entry.get().strip()
@@ -95,8 +102,8 @@ def launch_gui():
         start_scheduled_updates()
         messagebox.showinfo("Running", "Wallpaper will now update in the background.")
 
-    tk.Button(root, text="Save Settings", command=save_settings).pack(pady=(5, 5))
-    tk.Button(root, text="Start Updating", command=start_updates).pack(pady=(0, 10))
+    ttk.Button(frm, text="💾 Save Settings", command=save_settings, bootstyle="success").pack(pady=(0, 6), fill=X)
+    ttk.Button(frm, text="▶ Start Updating", command=start_updates, bootstyle="info").pack(pady=(0, 6), fill=X)
 
     def minimize_to_tray():
         root.withdraw()
