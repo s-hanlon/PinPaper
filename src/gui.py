@@ -51,7 +51,7 @@ def start_scheduled_updates():
 
 def launch_gui():
     config = load_config()
-    style = Style("darkly")  # try "cosmo", "superhero", "flatly", etc.
+    style = Style("superhero")  # try "cosmo", "superhero", "flatly", etc.
     root = style.master
     root.title("PinPaper Settings")
     root.geometry("420x280")
