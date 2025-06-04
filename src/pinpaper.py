@@ -15,27 +15,12 @@ from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 import feedparser
 
-def get_pin_count(soup):
-    """
-    Extracts the pin count from the board header.
-    Looks for text like "42 Pins" and parses the number.
-    """
-    try:
-        header_text = soup.find(text=re.compile(r"\d+\s+Pins"))
-        if header_text:
-            match = re.search(r"(\d+)\s+Pins", header_text)
-            if match:
-                return int(match.group(1))
-    except:
-        pass
-    return None
-
-def scale_scrolls(pin_count):
-    if pin_count < 30:
+def scale_scrolls(pin_hint):
+    if pin_hint == "<40":
         return 2
-    elif pin_count < 60:
+    elif pin_hint == "<60":
         return 3
-    elif pin_count < 100:
+    elif pin_hint == "<100":
         return 4
     else:
         return 5
@@ -47,7 +32,6 @@ def fetch_from_rss(board_url):
     if not entries:
         raise Exception("RSS feed is empty.")
 
-    # Choose a random image
     for entry in entries:
         if 'summary' in entry and 'img src="' in entry.summary:
             match = re.search(r'img src="([^"]+)"', entry.summary)
@@ -56,7 +40,6 @@ def fetch_from_rss(board_url):
     raise Exception("No image found in RSS entries.")
 
 def run_pinpaper():
-    # === LOAD CONFIG ===
     DEFAULT_BOARD_URL = "https://www.pinterest.com/seanhanlon126/pinpaper/"
     DEFAULT_DIR = os.path.join(os.path.expanduser("~"), "Pictures", "PinPaper")
     config_path = os.path.join(os.path.dirname(__file__), 'config.json')
@@ -65,34 +48,32 @@ def run_pinpaper():
             config = json.load(f)
         BOARD_URL = config.get("board_url", DEFAULT_BOARD_URL)
         DOWNLOAD_DIR = config.get("download_dir", DEFAULT_DIR)
+        PIN_HINT = config.get("pin_count_hint", "<100")
     except (FileNotFoundError, json.JSONDecodeError):
         print("⚠️ Could not load config.json — using default settings.")
         BOARD_URL = DEFAULT_BOARD_URL
         DOWNLOAD_DIR = DEFAULT_DIR
+        PIN_HINT = "<100"
 
     WALLPAPER_PATH = os.path.join(DOWNLOAD_DIR, "pin_today.jpg")
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-    # === SETUP SELENIUM HEADLESS ===
-    chrome_options = Options()
-    chrome_options.add_argument("--headless=new")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--log-level=3")
-    chrome_options.add_argument("--window-size=1920x3000")
-
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
-    driver.get(BOARD_URL)
-    time.sleep(2)
-    soup = BeautifulSoup(driver.page_source, "html.parser")
-    pin_count = get_pin_count(soup)
-
-    if pin_count is not None and pin_count < 20:
-        print(f"[Info] Board has {pin_count} pins — using RSS fallback.")
-        driver.quit()
+    if PIN_HINT == "<20":
+        print(f"[Info] User selected pin count hint: {PIN_HINT} — using RSS.")
         base_url = fetch_from_rss(BOARD_URL)
     else:
-        scrolls = scale_scrolls(pin_count if pin_count else 60)
-        print(f"[Info] Board has {pin_count if pin_count else 'unknown'} pins — scrolling {scrolls} times.")
+        scrolls = scale_scrolls(PIN_HINT)
+        print(f"[Info] User selected pin count hint: {PIN_HINT} — scrolling {scrolls} times.")
+
+        chrome_options = Options()
+        chrome_options.add_argument("--headless=new")
+        chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--log-level=3")
+        chrome_options.add_argument("--window-size=1920x3000")
+
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+        driver.get(BOARD_URL)
+        time.sleep(2)
 
         last_height = driver.execute_script("return document.body.scrollHeight")
         for _ in range(scrolls):
@@ -117,7 +98,6 @@ def run_pinpaper():
 
         base_url = random.choice(img_urls)
 
-    # === UPGRADE IMAGE QUALITY ===
     quality_paths = ["/originals/", "/736x/", "/564x/", "/236x/"]
     img_url, img_resp = None, None
     for quality in quality_paths:
